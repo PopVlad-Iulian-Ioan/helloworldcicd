@@ -7,6 +7,8 @@ on:
 
 env:
   AWS_REPOSITORY: helloworldrepository
+  ECS_SERVICE: helloworldservice
+  ECS_CLUSTER: helloworldcluster
 
 jobs:
   deploy:
@@ -45,11 +47,16 @@ jobs:
           aws ecs describe-task-definition --task-definition helloworldtask \
           --query taskDefinition > task-definition.json
 
-      - name: Read task-definiton.json
-        run: cat task-definition.json
-
       - name: Update task-definition.json
         run: echo "`jq '.containerDefinitions[0].image="${{ steps.build-image.outputs.image }}"' task-definition.json`" > task-definition.json
 
-      - name: Read task-definiton.json
-        run: cat task-definition.json
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          service: $ECS_SERVICE
+          cluster: $ECS_CLUSTER
+
+      - name: Force redeploy
+        run: |
+          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --region: ${{ secrets.AWS_REGION }} --force-new-deployment
